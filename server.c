@@ -73,6 +73,7 @@ int acceptConnection(int socketFDescriptor)
         perror("ERROR::can't accept connection");
         exit(EXIT_FAILURE);
     }
+    printf("SERVER->Waiting for connection...\n");
 
     return connectionFDescriptor;
 }
