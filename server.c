@@ -13,8 +13,8 @@ const int g_bufferSize = 1024;
 
 int getSocketServer(int port);
 int acceptConnection(int socketFDescriptor);
-void getRRCConnectionRequest(int ConnectionFDescriptor); 
-void sendRRCConnectionSetup(int ConnectionFDescriptor);
+void getRRCConnectionRequest(int connectionFDescriptor); 
+void sendRRCConnectionSetup(int connectionFDescriptor);
 
 int main(int argc, const char **argv) 
 {
@@ -44,12 +44,12 @@ int getSocketServer(int port)
         exit(EXIT_FAILURE);
     }
 
-    struct sockaddr_in ServerAddress;
-    ServerAddress.sin_family = AF_INET;
-    ServerAddress.sin_port = htons(port);
-    ServerAddress.sin_addr.s_addr = INADDR_ANY;
+    struct sockaddr_in serverAddress;
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_port = htons(port);
+    serverAddress.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(socketFDescriptor, (struct sockaddr*)&ServerAddress, sizeof(ServerAddress)) < 0) 
+    if (bind(socketFDescriptor, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) 
     {
         perror("ERROR::can't bind socket");
         exit(EXIT_FAILURE);
@@ -66,28 +66,28 @@ int getSocketServer(int port)
 
 int acceptConnection(int socketFDescriptor) 
 {
-    int ConnectionFDescriptor = accept(socketFDescriptor, NULL, NULL);
+    int connectionFDescriptor = accept(socketFDescriptor, NULL, NULL);
 
-    if (ConnectionFDescriptor < 0)
+    if (connectionFDescriptor < 0)
     {
         perror("ERROR::can't accept connection");
         exit(EXIT_FAILURE);
     }
 
-    return ConnectionFDescriptor;
+    return connectionFDescriptor;
 }
 
-void getRRCConnectionRequest(int ConnectionFDescriptor) 
+void getRRCConnectionRequest(int connectionFDescriptor) 
 {
     uint8_t buffer[g_bufferSize];
-    ssize_t size = receiveMessage(ConnectionFDescriptor, buffer, sizeof(buffer));
+    ssize_t size = receiveMessage(connectionFDescriptor, buffer, sizeof(buffer));
     RRCConnectionRequest_t* RRCRequest = NULL;
-    asn_dec_rval_t DecodeTry = asn_decode(NULL, ATS_DER, &asn_DEF_RRCConnectionRequest, (void**)&RRCRequest, buffer, size);
+    asn_dec_rval_t decodeTry = asn_decode(NULL, ATS_DER, &asn_DEF_RRCConnectionRequest, (void**)&RRCRequest, buffer, size);
 
-    if (DecodeTry.code != RC_OK)
+    if (decodeTry.code != RC_OK)
     {
         fprintf(stderr, "ERROR::can't decode RRC Connection Request\n");
-        close(ConnectionFDescriptor);
+        close(connectionFDescriptor);
         exit(EXIT_FAILURE);
     }
     printf("Success->RRCCOnnectionRequest::Recieved\n");
@@ -95,7 +95,7 @@ void getRRCConnectionRequest(int ConnectionFDescriptor)
     ASN_STRUCT_FREE(asn_DEF_RRCConnectionRequest, RRCRequest);
 }
 
-void sendRRCConnectionSetup(int ConnectionFDescriptor)
+void sendRRCConnectionSetup(int connectionFDescriptor)
 {
     RRCConnectionSetup_t RRCSetup;
     memset(&RRCSetup, 0, sizeof(RRCConnectionSetup_t));
@@ -103,43 +103,48 @@ void sendRRCConnectionSetup(int ConnectionFDescriptor)
     RRCSetup.criticalExtensions.present = RRCConnectionSetup__criticalExtensions_PR_c1;
     RRCSetup.criticalExtensions.choice.c1.present = RRCConnectionSetup__criticalExtensions__c1_PR_rrcConnectionSetup_r8;
     uint8_t buffer[g_bufferSize];
-    asn_enc_rval_t EncodeTry = der_encode_to_buffer(&asn_DEF_RRCConnectionSetup, &RRCSetup, buffer, sizeof(buffer));
+    asn_enc_rval_t encodeTry = der_encode_to_buffer(
+        &asn_DEF_RRCConnectionSetup, 
+        &RRCSetup, 
+        buffer, 
+        sizeof(buffer));
 
-    if (EncodeTry.encoded < 0) 
+    if (encodeTry.encoded < 0) 
     {
         fprintf(stderr, "ERROR::can't encode RRC Connection Setup\n");
-        close(ConnectionFDescriptor);
+        close(connectionFDescriptor);
         exit(EXIT_FAILURE);
     }
     printf("Success->RRCConnectionSetup::Sent\n");
 
-    sendMessage(ConnectionFDescriptor, buffer, EncodeTry.encoded);
+    sendMessage(connectionFDescriptor, buffer, encodeTry.encoded);
 
 }
 
 
 ssize_t receiveMessage(int socketFDescriptor, uint8_t* buffer, size_t size)
 {
-    ssize_t ReceiveTry = recv(socketFDescriptor, buffer, size, 0);
+    ssize_t receiveTry = recv(socketFDescriptor, buffer, size, 0);
 
-    if (ReceiveTry < 0) {
-        perror("ERROR: can't receive message");
+    if (receiveTry < 0) 
+    {
+        perror("ERROR::can't receive message");
         exit(EXIT_FAILURE);
     }
 
-    return ReceiveTry;
+    return receiveTry;
 }
 
 ssize_t sendMessage(int socketFDescriptor, uint8_t* buffer, ssize_t size) 
 {
-    ssize_t SendTry = send(socketFDescriptor, buffer, size, 0);
+    ssize_t sendTry = send(socketFDescriptor, buffer, size, 0);
 
-    if (SendTry < 0) 
+    if (sendTry < 0) 
     {
-        perror("ERROR: can't send message");
+        perror("ERROR::can't send message");
         exit(EXIT_FAILURE);
     }
 
-    return SendTry;
+    return sendTry;
 }
 
